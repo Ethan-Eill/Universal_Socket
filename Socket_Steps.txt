@@ -1,0 +1,10 @@
+Winsock2 Socket Steps:
+
+TCP Server:
+1. Create Listen_Socket socket object
+2. setsockopt() for Listen_Socket with keepalive
+3. Fill in variables for SOCKADDR_IN
+4. Call bind() Listen_Socket with SOCKADDR_IN object
+5. listen() on the Listen_Socket
+6. accept() with Listen_Socket as parameter, set new socket equal
+7. closesocket() for Listen_Socket
