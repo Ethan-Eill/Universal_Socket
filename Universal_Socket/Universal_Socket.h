@@ -8,18 +8,39 @@
 //          \/           \/     \/     \/  \/         \/ 
 // 
 // Universal Socket Header File
-// 07-05-2024
+// 08-11-2024
 //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 #pragma once
 
+#include <WinSock2.h>
+#include <WS2tcpip.h>
 #include <iostream>
 #include <string>
-#include <WinSock2.h>
+#include <mutex>
+#include <queue>
 
 namespace Socket_Vars
 {
-   
+   constexpr uint16_t MAX_EVENTS{ 100 };
+   constexpr uint16_t MAX_SOCKETS{ 100 };
+
+   // List of all socket event handles
+   extern HANDLE socket_events[MAX_EVENTS];
+
+   // Number of events in the socket_events list
+   extern uint16_t event_count;
+
+   // Mutexs for send and receive queues
+   extern std::mutex receive_mutex[MAX_SOCKETS];
+   extern std::mutex send_mutex[MAX_SOCKETS];
+
+   // Receive and send queues for each socket,
+   // if you have a message to be sent, place it on the send queue
+   // if a message is received, it will be placed on the receive queue
+   extern std::queue<std::string> receive_queue[MAX_SOCKETS];
+   extern std::queue<std::string> send_queue[MAX_SOCKETS];
+
    enum Protocol : uint8_t
    {
       TCP   = 1,
@@ -31,6 +52,16 @@ namespace Socket_Vars
       CLIENT  = 1,
       SERVER  = 2
    };
+
+   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /// @brief   When creating a socket, an event HANDLE must
+   /// @brief   also be created and added to the socket_events
+   /// @brief   list, this manages that
+   /// @param   HANDLE            event to be added to socket_events
+   /// @param   uint16_t          returning index where event was added
+   /// @return  bool              Result of the addition
+   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   extern bool Add_Event_To_Event_List(HANDLE& event, uint16_t& event_list_index);
 
 }	// END namespace Socket_Vars
 
@@ -45,12 +76,8 @@ public:
       Socket_Vars::Protocol protocol_type,
       Socket_Vars::Connection_Type connection_type,
       std::string ip_address,
-      uint16_t port);
-
-   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   /// @brief   Destructor
-   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   ~Universal_Socket();
+      uint16_t port,
+      std::string name);
 
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    /// @brief   Opens the socket ready to receive and or send
@@ -59,18 +86,24 @@ public:
    bool Start();
 
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /// @brief   Handles the event that was triggered on this socket
+   /// @return  bool              Result of the event handle
+   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   bool Handle_Event();
+
+   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    /// @brief   Sends a message over the socket
    /// @param   unsigned char*    Buffer containing the message
    /// @return  bool              Result of the send
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   bool Send(unsigned char* buffer);
+   bool Send(const char* buffer);
 
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    /// @brief   Opens the socket ready to receive and or send
    /// @param   unsigned char*    Buffer where message will be put in
    /// @return  bool              Result of the receive
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   bool Receive(unsigned char* buffer);
+   bool Receive(char* &buffer);
 
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    /// @brief   Reconnects the socket
@@ -93,6 +126,8 @@ private:
    Socket_Vars::Connection_Type _connection;
    std::string _ip_address;
    uint16_t _port;
+   std::string _socket_name;
+   uint16_t _event_handle_index;
 
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    /// @brief   Opens the socket as a TCP Server

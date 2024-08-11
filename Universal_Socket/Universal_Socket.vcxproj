@@ -127,10 +127,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Communication_Interface.cpp" />
     <ClCompile Include="Driver.cpp" />
     <ClCompile Include="Universal_Socket.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Communication_Interface.h" />
     <ClInclude Include="Universal_Socket.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
