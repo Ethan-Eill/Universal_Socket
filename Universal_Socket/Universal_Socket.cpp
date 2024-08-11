@@ -309,7 +309,8 @@ bool Universal_Socket::Handle_Event()
    static int send_count = 1;
 
    //
-   // 1. 
+   // 1. If _socket is not initialized yet, then the event fired for this socket
+   //    must be an accept, in which case it is on the _listen_socket
    if (INVALID_SOCKET == _socket)
    {
       func_result = WSAEnumNetworkEvents(
