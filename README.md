@@ -26,4 +26,7 @@ I'm not sure if this is best practice, but I used the Socket_Receiving_Thread as
 - Socket close
 - Socket receive
 
-The Socket_Sending_Thread is purely monitoring the send_queue, and calling Universal_Socket::Send() for every message that is placed on the queue.
+Socket_Receiving_Thread() in Communication_Interface.cpp uses the WSAWaitForMultipleEvents() to wait on the array of events, one event being for each socket.
+
+The Socket_Sending_Thread is purely monitoring the send_queue, and calling Universal_Socket::Send() for every message that is placed on the queue. Before sending a message over the socket,
+you must make sure the socket is alive by calling Is_Socket_Connected(). If the socket is not connected, the send will fail and return false.
