@@ -13,6 +13,7 @@
 // --------------------------------------------------------
 //  ECE      08-11-2024   Initial Implementation
 //  ECE      08-14-2024   Added connection check before send
+//  ECE      08-15-2024   Added another TCP server socket object
 //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 #include "Communication_Interface.h"
@@ -46,9 +47,22 @@ namespace Comms_Interface
          socket_name
       );
 
+      // Another socket just over different port
+      socket_name = "Universal_Socket->Port8090";
+      port = 8090;
+      Universal_Socket Server_Socket_8090 = Universal_Socket
+      (
+         protocol_type,
+         connect_type,
+         ip_address,
+         port,
+         socket_name
+      );
+
       //
       // 2. Add all Socket objects to the list of socket objects
       Socket_List.push_back(std::move(Server_Socket));
+      Socket_List.push_back(std::move(Server_Socket_8090));
 
       //
       // 3. Start all the sockets in the Socket_List

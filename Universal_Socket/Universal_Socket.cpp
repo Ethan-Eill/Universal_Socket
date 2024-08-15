@@ -13,6 +13,7 @@
 // --------------------------------------------------------
 //  ECE      08-11-2024   Initial Implementation
 //  ECE      08-14-2024   Added _is_socket_connected flag
+//  ECE      08-15-2024   Implemented TCP Client option
 //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 // Need to link with Ws2_32.lib
@@ -126,7 +127,7 @@ bool Universal_Socket::TCP_Server_Start()
    }
    else
    {
-      printf("TCP-S awaiting new connections!\n");
+      printf("TCP-Server %s awaiting new connections!\n", _socket_name.c_str());
    }
 
    //
@@ -197,8 +198,33 @@ bool Universal_Socket::TCP_Client_Start()
    }
    else
    {
-      printf("Client: Ready for sending and/or receiving messages...\n");
+      printf("TCP Client %s: Ready for sending and/or receiving messages...\n", _socket_name.c_str());
       result &= true;
+      _is_socket_connected = true;
+   }
+
+   //
+   // 4. Create an event for the listen socket
+   HANDLE event = WSACreateEvent();
+   Socket_Vars::socket_events[_event_handle_index] = event;
+   if (WSA_INVALID_EVENT == Socket_Vars::socket_events[_event_handle_index])
+   {
+      printf("ERROR, Client WSACreateEvent() failed with: %u\n", WSAGetLastError());
+      result &= false;
+      return result;
+   }
+
+   //
+   // 7. Use 'WSAEventSelect' to associate an event with the socket
+   func_result = WSAEventSelect(
+      _socket,
+      Socket_Vars::socket_events[_event_handle_index],
+      FD_ACCEPT | FD_READ | FD_WRITE | FD_CLOSE);
+   if (SOCKET_ERROR == func_result)
+   {
+      printf("ERROR, Server WSAEventSelect() failed with: %u\n", WSAGetLastError());
+      result &= false;
+      return result;
    }
 
    return result;
@@ -331,7 +357,6 @@ bool Universal_Socket::Handle_Event()
          Socket_Vars::socket_events[_event_handle_index],
          &networkEvents
       );
-      printf("Event fired!\n");
    }
 
    //
@@ -375,7 +400,8 @@ bool Universal_Socket::Handle_Event()
    if ((networkEvents.lNetworkEvents & FD_CLOSE))
    {
       printf("%s Socket Disconnected!\n", _socket_name.c_str());
-      result &= Reconnect();
+      std::thread reconnect_thread(&Universal_Socket::Reconnect, this);
+      reconnect_thread.detach();
    }
 
    return result;
@@ -462,13 +488,13 @@ bool Universal_Socket::Reconnect()
    // 1. Close the socket and mark it as invalid
    closesocket(_socket);
    _socket = INVALID_SOCKET;
-   _is_socket_connected == false;
+   _is_socket_connected = false;
 
    //
    // 2. Attempt to reconnect by listening for a new connection
    while (is_reconnecting)
    {
-      printf("%s Waiting for a new connection...\n", _socket_name.c_str());
+      printf("%s Waiting for reconnection...\n", _socket_name.c_str());
 
       //
       // 3. Wait for the FD_ACCEPT event to be triggered

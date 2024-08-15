@@ -13,6 +13,7 @@
 // --------------------------------------------------------
 //  ECE      08-11-2024   Initial Implementation
 //  ECE      08-14-2024   Added _is_socket_connected flag
+//  ECE      08-15-2024   Added getter for connection type
 //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 #pragma once
@@ -126,6 +127,12 @@ public:
    /// @return  bool              _is_socket_connected
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    inline bool Is_Socket_Connected() { return _is_socket_connected; }
+
+   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /// @brief   Gets Client or Server connection type
+   /// @return  Connection_Type   _connection
+   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   inline Socket_Vars::Connection_Type Get_Connection_Type() { return _connection; }
 
 private:
 
