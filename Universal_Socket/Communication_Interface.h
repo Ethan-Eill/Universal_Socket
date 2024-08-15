@@ -8,7 +8,10 @@
 //          \/           \/     \/     \/  \/         \/ 
 // 
 // Communication Interface Header File
-// 08-11-2024
+// 
+//  Author   Date         Description
+// --------------------------------------------------------
+//  ECE      08-11-2024   Initial Implementation
 //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 #pragma once

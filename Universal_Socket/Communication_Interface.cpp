@@ -8,7 +8,11 @@
 //          \/           \/     \/     \/  \/         \/ 
 // 
 // Communication Interface Implementation File
-// 08-11-2024
+// 
+//  Author   Date         Description
+// --------------------------------------------------------
+//  ECE      08-11-2024   Initial Implementation
+//  ECE      08-14-2024   Added connection check before send
 //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 #include "Communication_Interface.h"
@@ -24,7 +28,7 @@ namespace Comms_Interface
    bool Setup_Comms()
    {
       bool result = true;
-      printf("Setting up the server socket!\n");
+      printf("Beginning Universal Socket!\n");
       Socket_Vars::Protocol protocol_type = Socket_Vars::TCP;
       Socket_Vars::Connection_Type connect_type = Socket_Vars::SERVER;
       std::string ip_address = "127.0.0.1";
@@ -83,7 +87,9 @@ namespace Comms_Interface
 
             //
             // 2. If the queue is not empty, then send the message waiting in the queue
-            if (false == Socket_Vars::send_queue[i].empty())
+            if (false == Socket_Vars::send_queue[i].empty()
+                &&
+                Socket_List[i].Is_Socket_Connected())
             {
                //
                // 2a. Dequeue the message from the send queue

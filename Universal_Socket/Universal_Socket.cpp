@@ -8,7 +8,11 @@
 //          \/           \/     \/     \/  \/         \/ 
 // 
 // Universal Socket Implementation File
-// 08-11-2024
+// 
+//  Author   Date         Description
+// --------------------------------------------------------
+//  ECE      08-11-2024   Initial Implementation
+//  ECE      08-14-2024   Added _is_socket_connected flag
 //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 // Need to link with Ws2_32.lib
@@ -222,6 +226,7 @@ Universal_Socket::Universal_Socket
    _socket_name = name;
    _socket = INVALID_SOCKET;
    _listen_socket = INVALID_SOCKET;
+   _is_socket_connected = false;
    memset(&_address, 0, sizeof(SOCKADDR_IN));
 
    // function level variables
@@ -326,6 +331,7 @@ bool Universal_Socket::Handle_Event()
          Socket_Vars::socket_events[_event_handle_index],
          &networkEvents
       );
+      printf("Event fired!\n");
    }
 
    //
@@ -339,9 +345,7 @@ bool Universal_Socket::Handle_Event()
 
    //
    // 3. Event fired for this socket was a socket accept
-   if ((networkEvents.lNetworkEvents & FD_ACCEPT)
-      &&
-      (0 == networkEvents.iErrorCode[FD_ACCEPT_BIT]))
+   if ((networkEvents.lNetworkEvents & FD_ACCEPT))
    {
       _socket = accept(_listen_socket, nullptr, nullptr);
       if (INVALID_SOCKET == _socket) 
@@ -351,13 +355,14 @@ bool Universal_Socket::Handle_Event()
          return result;
       }
       printf("%s accept() succeeded!\n", _socket_name.c_str());
+      // If socket is connected and ready to send and receive, then
+      // set the flag to true
+      _is_socket_connected = true;
    }
 
    // 
    // 4. Event fired for this socket was a socket accept
-   if ((networkEvents.lNetworkEvents & FD_READ)
-      &&
-      (0 == networkEvents.iErrorCode[FD_READ_BIT]))
+   if ((networkEvents.lNetworkEvents & FD_READ))
    {
       result &= Receive(buffer);
       std::string my_string = "Hey Client!";
@@ -367,9 +372,7 @@ bool Universal_Socket::Handle_Event()
 
    //
    // 5. Event fired for this socket was a close
-   if ((networkEvents.lNetworkEvents & FD_CLOSE)
-      &&
-      (0 == networkEvents.iErrorCode[FD_CLOSE_BIT])) 
+   if ((networkEvents.lNetworkEvents & FD_CLOSE))
    {
       printf("%s Socket Disconnected!\n", _socket_name.c_str());
       result &= Reconnect();
@@ -459,6 +462,7 @@ bool Universal_Socket::Reconnect()
    // 1. Close the socket and mark it as invalid
    closesocket(_socket);
    _socket = INVALID_SOCKET;
+   _is_socket_connected == false;
 
    //
    // 2. Attempt to reconnect by listening for a new connection
@@ -509,6 +513,7 @@ bool Universal_Socket::Reconnect()
          else
          {
             printf("accept() succeeded! New client connected.\n");
+            _is_socket_connected = true;
             is_reconnecting = false; // Exit the loop and return to normal processing
          }
       }

@@ -8,7 +8,11 @@
 //          \/           \/     \/     \/  \/         \/ 
 // 
 // Universal Socket Header File
-// 08-11-2024
+// 
+//  Author   Date         Description
+// --------------------------------------------------------
+//  ECE      08-11-2024   Initial Implementation
+//  ECE      08-14-2024   Added _is_socket_connected flag
 //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 #pragma once
@@ -117,6 +121,12 @@ public:
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    bool Stop();
 
+   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /// @brief   Fetches the current connection status
+   /// @return  bool              _is_socket_connected
+   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   inline bool Is_Socket_Connected() { return _is_socket_connected; }
+
 private:
 
    SOCKET _socket;
@@ -128,6 +138,7 @@ private:
    uint16_t _port;
    std::string _socket_name;
    uint16_t _event_handle_index;
+   bool _is_socket_connected;
 
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    /// @brief   Opens the socket as a TCP Server
