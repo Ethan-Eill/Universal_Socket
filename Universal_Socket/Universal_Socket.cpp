@@ -14,6 +14,7 @@
 //  ECE      08-11-2024   Initial Implementation
 //  ECE      08-14-2024   Added _is_socket_connected flag
 //  ECE      08-15-2024   Implemented TCP Client option
+//  ECE      08-16-2024   Implemented UDP option
 //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 // Need to link with Ws2_32.lib
@@ -215,7 +216,7 @@ bool Universal_Socket::TCP_Client_Start()
    }
 
    //
-   // 7. Use 'WSAEventSelect' to associate an event with the socket
+   // 5. Use 'WSAEventSelect' to associate an event with the socket
    func_result = WSAEventSelect(
       _socket,
       Socket_Vars::socket_events[_event_handle_index],
@@ -229,6 +230,76 @@ bool Universal_Socket::TCP_Client_Start()
 
    return result;
 }  // END TCP_Client_Start()
+
+//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+    
+/// Opens the socket as UDP
+//+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+bool Universal_Socket::UDP_Socket_Start()
+{
+   bool result = true;
+   int func_result;
+
+   //
+   // 1. Create a UDP socket
+   _socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+   if (INVALID_SOCKET == _socket) {
+      printf("UDP %s socket() failed with: %u\n", _socket_name.c_str(), WSAGetLastError());
+      result &= false;
+      return result;
+   }
+
+   //
+   // 2. Initialize the SOCKADDR_IN
+   _address.sin_family = AF_INET;
+   _address.sin_port = htons(_port);
+   // InetPton() requires IP Address as a PCWSTR
+   // this is the conversion of std::string to PCWSTR
+   std::wstring w_str(_ip_address.begin(), _ip_address.end());
+   PCWSTR pcwstr_ip = w_str.c_str();
+   InetPton(AF_INET, pcwstr_ip, &_address.sin_addr.s_addr);
+
+   //
+   // 3. Listen on specific port for incoming messages
+   func_result = bind(_socket, (SOCKADDR*)&_address, sizeof(_address));
+   if (0 != func_result)
+   {
+      printf("ERROR, UDP bind() failed with: %u\n", WSAGetLastError());
+      result &= false;
+      return result;
+   }
+   else
+   {
+      printf("UDP Socket %s: Ready for sending and/or receiving messages...\n", _socket_name.c_str());
+      result &= true;
+      _is_socket_connected = true;
+   }
+
+   //
+   // 4. Create an event for the listen socket
+   HANDLE event = WSACreateEvent();
+   Socket_Vars::socket_events[_event_handle_index] = event;
+   if (WSA_INVALID_EVENT == Socket_Vars::socket_events[_event_handle_index])
+   {
+      printf("ERROR, Client WSACreateEvent() failed with: %u\n", WSAGetLastError());
+      result &= false;
+      return result;
+   }
+
+   //
+   // 5. Use 'WSAEventSelect' to associate an event with the socket
+   func_result = WSAEventSelect(
+      _socket,
+      Socket_Vars::socket_events[_event_handle_index],
+      FD_ACCEPT | FD_READ | FD_WRITE | FD_CLOSE);
+   if (SOCKET_ERROR == func_result)
+   {
+      printf("ERROR, Server WSAEventSelect() failed with: %u\n", WSAGetLastError());
+      result &= false;
+      return result;
+   }
+
+   return result;
+}  // END UDP_Socket_Start()
 
 //-+-+-+-+-+-+-+-+-+-+-+PUBLIC FUNCTIONS+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
@@ -305,19 +376,7 @@ bool Universal_Socket::Start()
    }
    else if (Socket_Vars::UDP == _protocol)
    {
-      if (Socket_Vars::SERVER == _connection)
-      {
-         //result &= UDP_Server_Start();
-      }
-      else if (Socket_Vars::CLIENT == _connection)
-      {
-         //result &= UDP_Client_Start();
-      }
-      else
-      {
-         printf("Invalid connection type specified for UDP Socket!\n");
-         result &= false;
-      }
+      result &= UDP_Socket_Start();
    }
    else
    {
@@ -413,14 +472,23 @@ bool Universal_Socket::Handle_Event()
 bool Universal_Socket::Send(const char* buffer)
 {
    bool result = true;
+   int bytes_sent;
+   int buffer_length;
    
    //
    // 1. Get the length of the message
-   int buffer_length = static_cast<int>(strlen(buffer));
+   buffer_length = static_cast<int>(strlen(buffer));
 
    //
    // 2. Send the message
-   int bytes_sent = send(_socket, buffer, buffer_length, 0);
+   if (Socket_Vars::TCP == _protocol)
+   {
+      bytes_sent = send(_socket, buffer, buffer_length, 0);
+   }
+   else   // UDP
+   {
+      bytes_sent = sendto(_socket, buffer, buffer_length, 0, (SOCKADDR*)&_address, sizeof(_address));
+   }
 
    //
    // 3. Check if the send operation was successful
@@ -448,10 +516,18 @@ bool Universal_Socket::Receive(char* &buffer)
    int bytes_received = 0;
    constexpr uint16_t MAX_RECV_SIZE{ 1024 };
    char recv_buffer[MAX_RECV_SIZE];
+   int address_size = sizeof(_address);
 
    //
    // 1. Receive the message from the socket
-   bytes_received = recv(_socket, recv_buffer, MAX_RECV_SIZE-1, 0);
+   if (Socket_Vars::TCP == _protocol)
+   {
+      bytes_received = recv(_socket, recv_buffer, MAX_RECV_SIZE - 1, 0);
+   }
+   else   // UDP
+   {
+      bytes_received = recvfrom(_socket, recv_buffer, MAX_RECV_SIZE - 1, 0, (SOCKADDR*)&_address, &address_size);
+   }
    if (bytes_received > 0)
    {
       //
@@ -492,12 +568,13 @@ bool Universal_Socket::Reconnect()
 
    //
    // 2. Attempt to reconnect by listening for a new connection
-   while (is_reconnecting)
+   //    this reconnect logic only applicable for TCP
+   while (is_reconnecting && Socket_Vars::TCP == _protocol)
    {
       printf("%s Waiting for reconnection...\n", _socket_name.c_str());
 
       //
-      // 3. Wait for the FD_ACCEPT event to be triggered
+      // 2a. Wait for the FD_ACCEPT event to be triggered
       func_result = WSAWaitForMultipleEvents(
          1,
          &Socket_Vars::socket_events[_event_handle_index],
@@ -507,7 +584,7 @@ bool Universal_Socket::Reconnect()
       );
 
       //
-      // 4. Check for a failure
+      // 2b. Check for a failure
       if (WSA_WAIT_FAILED == func_result)
       {
          printf("%s WSAWaitForMultipleEvents() failed with: %u\n", _socket_name.c_str(), WSAGetLastError());
@@ -516,7 +593,7 @@ bool Universal_Socket::Reconnect()
       }
 
       //
-      // 5. Check if the event was for FD_ACCEPT
+      // 2c. Check if the event was for FD_ACCEPT
       func_result = WSAEnumNetworkEvents(_listen_socket, Socket_Vars::socket_events[_event_handle_index], &networkEvents);
       if (SOCKET_ERROR == func_result)
       {
@@ -526,7 +603,7 @@ bool Universal_Socket::Reconnect()
       }
 
       //
-      // 6. Event fired was a socket accept, accept the new connection and exit reconnection logic
+      // 2d. Event fired was a socket accept, accept the new connection and exit reconnection logic
       if ((networkEvents.lNetworkEvents & FD_ACCEPT) &&
          (0 == networkEvents.iErrorCode[FD_ACCEPT_BIT]))
       {
@@ -543,7 +620,14 @@ bool Universal_Socket::Reconnect()
             is_reconnecting = false; // Exit the loop and return to normal processing
          }
       }
-   }  // END while is_reconnecting
+   }  // END while is_reconnecting && TCP
+
+   //
+   // 3. Reconnection logic for UDP socket
+   if (Socket_Vars::UDP == _protocol)
+   {
+      result &= UDP_Socket_Start();
+   }  // END if UDP
 
    return result;
 }  // END Reconnect()

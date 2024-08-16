@@ -14,6 +14,7 @@
 //  ECE      08-11-2024   Initial Implementation
 //  ECE      08-14-2024   Added _is_socket_connected flag
 //  ECE      08-15-2024   Added getter for connection type
+//  ECE      08-16-2024   Implement UDP option
 //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 #pragma once
@@ -158,5 +159,11 @@ private:
    /// @return  bool       Result of the opening of the socket
    //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    bool TCP_Client_Start();
+
+   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   /// @brief   Opens the socket as UDP
+   /// @return  bool       Result of the opening of the socket
+   //+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   bool UDP_Socket_Start();
 
 };	// END class Universal_Socket

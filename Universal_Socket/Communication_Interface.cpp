@@ -30,7 +30,7 @@ namespace Comms_Interface
    {
       bool result = true;
       printf("Beginning Universal Socket!\n");
-      Socket_Vars::Protocol protocol_type = Socket_Vars::TCP;
+      Socket_Vars::Protocol protocol_type = Socket_Vars::UDP;
       Socket_Vars::Connection_Type connect_type = Socket_Vars::SERVER;
       std::string ip_address = "127.0.0.1";
       std::string socket_name = "Universal_Socket->Socket_Tester";
@@ -50,6 +50,7 @@ namespace Comms_Interface
       // Another socket just over different port
       socket_name = "Universal_Socket->Port8090";
       port = 8090;
+      protocol_type = Socket_Vars::TCP;
       Universal_Socket Server_Socket_8090 = Universal_Socket
       (
          protocol_type,
